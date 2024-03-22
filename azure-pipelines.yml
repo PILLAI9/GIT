@@ -1,19 +1,34 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- main
+  branches:
+    include:
+      - main
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+- checkout: self
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+- task: PowerShell@2
+  displayName: 'Export Flows from User A'
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Authenticate with source environment/user (User A)
+      pac auth login --environmentUrl "https://make.powerapps.com/environments/Default-840f444f-3c56-46d7-a120-3448ecc8e653/home" --clientId "37233a58-677b-41b7-a803-4761e4d63b50" --clientSecret "lgf8Q~nkhYh1ASXv_pnS9fml4_wpPFZSy0GQ1bub" --tenant "840f444f-3c56-46d7-a120-3448ecc8e653"
+
+      # Export flows owned by User A
+      pac solution export --publisherName "BI3DATA" --publisherPrefix "bi3data" --environmentName "https://make.powerapps.com/environments/Default-840f444f-3c56-46d7-a120-3448ecc8e653/home" --outputFolder "$(Build.ArtifactStagingDirectory)\export" --overwrite
+
+      # Modify owner information in exported flows (if needed)
+
+- task: PowerShell@2
+  displayName: 'Import Flows to User B'
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Authenticate with destination environment/user (User B)
+      pac auth login --environmentUrl "https://make.powerapps.com/environments/Default-840f444f-3c56-46d7-a120-3448ecc8e653/home" --clientId "37233a58-677b-41b7-a803-4761e4d63b50" --clientSecret "lgf8Q~nkhYh1ASXv_pnS9fml4_wpPFZSy0GQ1bub" --tenant "840f444f-3c56-46d7-a120-3448ecc8e653"
+
+      # Import flows to User B's environment
+      pac solution import --path "$(Build.ArtifactStagingDirectory)\export" --environmentName https://make.powerapps.com/environments/Default-840f444f-3c56-46d7-a120-3448ecc8e653/home" --overwrite
